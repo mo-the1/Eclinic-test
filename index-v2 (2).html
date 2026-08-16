@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clinic System</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  body { background:#000; color:#fff; font-family:Arial, sans-serif; margin:0; }
+  .container { max-width:420px; margin:0 auto; padding:24px; }
+  input, textarea { width:100%; box-sizing:border-box; background:#111; border:1px solid #333;
+    border-radius:8px; padding:12px; color:#fff; margin-bottom:10px; font-size:14px; font-family:inherit; }
+  button { width:100%; background:#fff; color:#000; border:none; border-radius:8px;
+    padding:12px; font-weight:bold; font-size:14px; cursor:pointer; }
+  button.secondary { background:transparent; color:#fff; border:1px solid #333; font-weight:normal; }
+  button.small { width:auto; padding:6px 14px; font-size:12px; border-radius:20px; }
+  .card { border:1px solid #333; border-radius:8px; padding:12px 16px; margin-bottom:8px;
+    cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+  .card:hover { border-color:#666; }
+  .row-between { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .muted { color:#888; font-size:13px; }
+  .note { border:1px solid #333; border-radius:8px; padding:10px 12px; margin-bottom:8px; font-size:14px; }
+  .note img { width:100%; border-radius:6px; margin-top:8px; display:block; }
+  .back { background:none; border:none; color:#888; margin-bottom:16px; cursor:pointer; font-size:14px; width:auto; padding:0; }
+  .upload-box { border:1px dashed #444; border-radius:8px; padding:24px; text-align:center;
+    margin-bottom:10px; cursor:pointer; color:#888; font-size:13px; }
+  .upload-box:hover { border-color:#888; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ====== حط بياناتك هنا ======
+const SUPABASE_URL = "https://mfrveljsifglheyrmgbi.supabase.co";
+const SUPABASE_KEY = "sb_publishable_15xYpC6dNvCzbvUi9vuPfQ__xOua0NS";
+// ============================
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+function App() {
+  const [patients, setPatients] = useState([]);
+  const [search, setSearch] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [showNoteForm, setShowNoteForm] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const [form, setForm] = useState({ name: "", phone: "", age: "", daysUntil: "7" });
+
+  const loadPatients = async () => {
+    const { data, error } = await supabase
+      .from("patients").select("*").order("created_at", { ascending: false });
+    if (!error) setPatients(data);
+  };
+
+  useEffect(() => { loadPatients(); }, []);
+
+  const calcDate = (days) => {
+    const d = new Date();
+    d.setDate(d.getDate() + parseInt(days || 0));
+    return d.toISOString().split("T")[0];
+  };
+
+  const handleAddPatient = async () => {
+    if (!form.name.trim() || !form.phone.trim()) return;
+    setLoading(true);
+    const { error } = await supabase.from("patients").insert([{
+      name: form.name, phone: form.phone,
+      age: form.age ? parseInt(form.age) : null,
+      next_appointment: calcDate(form.daysUntil),
+      notes: []
+    }]);
+    if (error) alert("خطأ: " + error.message);
+    else {
+      setForm({ name: "", phone: "", age: "", daysUntil: "7" });
+      setShowAddForm(false);
+      await loadPatients();
+    }
+    setLoading(false);
+  };
+
+  // رفع صورة على Supabase Storage وإرجاع رابطها العام
+  const uploadImage = async (file) => {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${selected.id}_${Date.now()}.${fileExt}`;
+    const { error: uploadError } = await supabase.storage
+      .from("patient-files").upload(fileName, file);
+    if (uploadError) { alert("فشل رفع الصورة: " + uploadError.message); return null; }
+    const { data } = supabase.storage.from("patient-files").getPublicUrl(fileName);
+    return data.publicUrl;
+  };
+
+  const handleFileSelected = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !selected) return;
+    setLoading(true);
+    const imageUrl = await uploadImage(file);
+    if (imageUrl) {
+      const updatedNotes = [
+        { image: imageUrl, text: noteText, date: new Date().toISOString().split("T")[0] },
+        ...(selected.notes || [])
+      ];
+      const { error } = await supabase.from("patients")
+        .update({ notes: updatedNotes }).eq("id", selected.id);
+      if (error) alert("خطأ: " + error.message);
+      else {
+        setSelected({ ...selected, notes: updatedNotes });
+        setNoteText("");
+        setShowNoteForm(false);
+        await loadPatients();
+      }
+    }
+    setLoading(false);
+    e.target.value = "";
+  };
+
+  const filtered = patients.filter(p =>
+    p.name.includes(search) || (p.phone || "").includes(search)
+  );
+
+  // ---- Patient Profile ----
+  if (selected) {
+    return (
+      <div className="container">
+        <button className="back" onClick={() => { setSelected(null); setShowNoteForm(false); }}>→ رجوع للقائمة</button>
+
+        <div style={{border:"1px solid #333", borderRadius:8, padding:16, marginBottom:20}}>
+          <h2 style={{margin:"0 0 4px"}}>{selected.name}</h2>
+          <p className="muted">{selected.phone} · {selected.age ? selected.age + " سنة" : "-"}</p>
+          <div style={{marginTop:10, fontSize:13, background:"#111", borderRadius:8, padding:"8px 12px", display:"inline-block"}}>
+            الكشف الجاي: {selected.next_appointment || "-"}
+          </div>
+        </div>
+
+        <div className="row-between">
+          <span className="muted">الروشتة والتحديثات</span>
+          <button className="small secondary" onClick={() => setShowNoteForm(!showNoteForm)}>+ إضافة تحديث</button>
+        </div>
+
+        {showNoteForm && (
+          <div style={{border:"1px solid #333", borderRadius:8, padding:12, marginBottom:14}}>
+            <textarea rows="2" placeholder="ملاحظة مختصرة (اختياري)..."
+              value={noteText} onChange={e => setNoteText(e.target.value)} />
+
+            <div className="upload-box" onClick={() => fileInputRef.current.click()}>
+              {loading ? "جاري رفع الصورة..." : "📎 دوس هنا لرفع صورة الروشتة أو التحليل"}
+            </div>
+            <input type="file" accept="image/*" ref={fileInputRef}
+              style={{display:"none"}} onChange={handleFileSelected} />
+          </div>
+        )}
+
+        {(selected.notes || []).length === 0 ? (
+          <p className="muted">مفيش تحديثات لسه</p>
+        ) : (
+          (selected.notes || []).map((n, i) => (
+            <div className="note" key={i}>
+              <div className="muted" style={{marginBottom:4}}>{n.date}</div>
+              {n.text && <div>{n.text}</div>}
+              {n.image && <img src={n.image} alt="روشتة" />}
+            </div>
+          ))
+        )}
+      </div>
+    );
+  }
+
+  // ---- Main List ----
+  return (
+    <div className="container">
+      <h1 style={{marginBottom:4}}>عيادة النساء والتوليد</h1>
+      <p className="muted" style={{marginBottom:20}}>{patients.length} مريضة مسجلة</p>
+
+      <input placeholder="دور بالاسم أو الرقم" value={search} onChange={e => setSearch(e.target.value)} />
+
+      <button onClick={() => setShowAddForm(!showAddForm)} style={{marginBottom:14}}>
+        + تسجيل مريضة جديدة
+      </button>
+
+      {showAddForm && (
+        <div style={{border:"1px solid #333", borderRadius:8, padding:14, marginBottom:16}}>
+          <input placeholder="الاسم" value={form.name} onChange={e => setForm({...form, name:e.target.value})} />
+          <input placeholder="رقم الموبايل" value={form.phone} onChange={e => setForm({...form, phone:e.target.value})} />
+          <input placeholder="السن" value={form.age} onChange={e => setForm({...form, age:e.target.value})} />
+          <label className="muted" style={{fontSize:12}}>الكشف الجاي بعد كام يوم؟</label>
+          <input type="number" value={form.daysUntil} onChange={e => setForm({...form, daysUntil:e.target.value})} />
+          <button onClick={handleAddPatient} disabled={loading}>
+            {loading ? "جاري الحفظ..." : "حفظ"}
+          </button>
+        </div>
+      )}
+
+      {filtered.map(p => (
+        <div className="card" key={p.id} onClick={() => setSelected(p)}>
+          <div>
+            <div>{p.name}</div>
+            <div className="muted" style={{fontSize:12}}>{p.phone} · {p.age ? p.age + " سنة" : "-"}</div>
+          </div>
+          <div className="muted" style={{fontSize:12, textAlign:"left"}}>
+            الكشف الجاي<br/>{p.next_appointment || "-"}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
