@@ -1,88 +1,84 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<title>Clinic System</title>
-<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-  body { background:#000; color:#fff; font-family:Arial, sans-serif; margin:0; }
-  .container { max-width:420px; margin:0 auto; padding:24px; }
-  input { width:100%; box-sizing:border-box; background:#111; border:1px solid #333;
-    border-radius:8px; padding:12px; color:#fff; margin-bottom:10px; font-size:14px; }
-  button { width:100%; background:#fff; color:#000; border:none; border-radius:8px;
-    padding:12px; font-weight:bold; font-size:14px; cursor:pointer; }
-  .card { border:1px solid #333; border-radius:8px; padding:12px 16px; margin-bottom:8px;
-    display:flex; justify-content:space-between; }
-</style>
-</head>
-<body>
-<div id="root"></div>
+const filtered = patients.filter(p =>
+    p.name.includes(search)  (p.phone  "").includes(search)
+  );
 
-<script type="text/babel">
-const { useState, useEffect } = React;
+  // ---- Patient Profile ----
+  if (selected) {
+    return (
+      <div className="container">
+        <button className="back" onClick={() => { setSelected(null); setShowNoteForm(false); }}>→ رجوع للقائمة</button>
 
-// ====== حط بياناتك هنا ======
-const SUPABASE_URL = "https://mfrveljsifglheyrmgbi.supabase.co";
-const SUPABASE_KEY = "sb_publishable_15xYpC6dNvCzbvUi9vuPfQ__xOua0NS";
-// ============================
+        <div style={{border:"1px solid #333", borderRadius:8, padding:16, marginBottom:20}}>
+          <h2 style={{margin:"0 0 4px"}}>{selected.name}</h2>
+          <p className="muted">{selected.phone} · {selected.age ? selected.age + " سنة" : "-"}</p>
+          <div style={{marginTop:10, fontSize:13, background:"#111", borderRadius:8, padding:"8px 12px", display:"inline-block"}}>
+            الكشف الجاي: {selected.next_appointment || "-"}
+          </div>
+        </div>
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        <div className="row-between">
+          <span className="muted">الروشتة والتحديثات</span>
+          <button className="small secondary" onClick={() => setShowNoteForm(!showNoteForm)}>+ إضافة تحديث</button>
+        </div>
 
-function App() {
-  const [patients, setPatients] = useState([]);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [age, setAge] = useState("");
-  const [loading, setLoading] = useState(false);
+        {showNoteForm && (
+          <div style={{border:"1px solid #333", borderRadius:8, padding:12, marginBottom:14}}>
+            <textarea rows="3" placeholder="اكتب الروشتة أو ملاحظات الكشف..."
+              value={newNote} onChange={e => setNewNote(e.target.value)} />
+            <button onClick={handleAddNote} disabled={loading}>
+              {loading ? "جاري الحفظ..." : "حفظ التحديث"}
+            </button>
+          </div>
+        )}
 
-  const loadPatients = async () => {
-    const { data, error } = await supabase
-      .from("patients")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) console.error(error);
-    else setPatients(data);
-  };
+        {(selected.notes || []).length === 0 ? (
+          <p className="muted">مفيش تحديثات لسه</p>
+        ) : (
+          (selected.notes || []).map((n, i) => (
+            <div className="note" key={i}>
+              <div className="muted" style={{marginBottom:4}}>{n.date}</div>
+              {n.text}
+            </div>
+          ))
+        )}
+      </div>
+    );
+  }
 
-  useEffect(() => { loadPatients(); }, []);
-
-  const handleSave = async () => {
-    if (!name.trim() || !phone.trim()) return;
-    setLoading(true);
-    const nextDate = new Date();
-    nextDate.setDate(nextDate.getDate() + 7);
-
-    const { error } = await supabase.from("patients").insert([{
-      name, phone, age: age ? parseInt(age) : null,
-      next_appointment: nextDate.toISOString().split("T")[0]
-    }]);
-
-    if (error) alert("حصل خطأ: " + error.message);
-    else {
-      setName(""); setPhone(""); setAge("");
-      loadPatients();
-    }
-    setLoading(false);
-  };
-
+  // ---- Main List ----
   return (
     <div className="container">
-      <h2>تسجيل مريضة جديدة</h2>
-      <input placeholder="الاسم" value={name} onChange={e => setName(e.target.value)} />
-      <input placeholder="رقم الموبايل" value={phone} onChange={e => setPhone(e.target.value)} />
-      <input placeholder="السن" value={age} onChange={e => setAge(e.target.value)} />
-      <button onClick={handleSave} disabled={loading}>
-        {loading ? "جاري الحفظ..." : "Save"}
+      <h1 style={{marginBottom:4}}>عيادة ام عراقي للنساء والتوليد</h1>
+      <p className="muted" style={{marginBottom:20}}>{patients.length} مريضة مسجلة</p>
+
+      <input placeholder="بحث بالاسم أو الرقم" value={search} onChange={e => setSearch(e.target.value)} />
+
+      <button onClick={() => setShowAddForm(!showAddForm)} style={{marginBottom:14}}>
+        + تسجيل مريضة جديدة
       </button>
 
-      <h3 style={{marginTop:"30px"}}>المريضات ({patients.length})</h3>
-      {patients.map(p => (
-        <div className="card" key={p.id}>
-          <span>{p.name}</span>
-          <span style={{color:"#888"}}>{p.phone}</span>
+      {showAddForm && (
+        <div style={{border:"1px solid #333", borderRadius:8, padding:14, marginBottom:16}}>
+          <input placeholder="الاسم" value={form.name} onChange={e => setForm({...form, name:e.target.value})} />
+          <input placeholder="رقم الموبايل" value={form.phone} onChange={e => setForm({...form, phone:e.target.value})} />
+          <input placeholder="السن" value={form.age} onChange={e => setForm({...form, age:e.target.value})} />
+          <label className="muted" style={{fontSize:12}}>الكشف الجاي بعد كام يوم؟</label>
+          <input type="number" value={form.daysUntil} onChange={e => setForm({...form, daysUntil:e.target.value})} />
+          <button onClick={handleAddPatient} disabled={loading}>
+            {loading ? "جاري الحفظ..." : "حفظ"}
+          </button>
+        </div>
+      )}
+
+      {filtered.map(p => (
+        <div className="card" key={p.id} onClick={() => setSelected(p)}>
+          <div>
+            <div>{p.name}</div>
+            <div className="muted" style={{fontSize:12}}>{p.phone} · {p.age ? p.age + " سنة" : "-"}</div>
+          </div>
+          <div className="muted" style={{fontSize:12, textAlign:"left"}}>
+            الكشف الجاي<br/>{p.next_appointment || "-"}
+          </div>
         </div>
       ))}
     </div>
