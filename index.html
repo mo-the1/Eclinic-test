@@ -146,7 +146,7 @@ function App() {
 
         {showNoteForm && (
           <div style={{border:"1px solid #333", borderRadius:8, padding:12, marginBottom:14}}>
-            <textarea rows="2" placeholder="ملاحظة مختصرة (اختياري)..."
+            <textarea rows="2" placeholder="ملاحظات اضافية..."
               value={noteText} onChange={e => setNoteText(e.target.value)} />
 
             <div className="upload-box" onClick={() => fileInputRef.current.click()}>
@@ -158,7 +158,7 @@ function App() {
         )}
 
         {(selected.notes || []).length === 0 ? (
-          <p className="muted">مفيش تحديثات لسه</p>
+          <p className="muted">لا يوجد تحديثات</p>
         ) : (
           (selected.notes || []).map((n, i) => (
             <div className="note" key={i}>
@@ -175,10 +175,10 @@ function App() {
   // ---- Main List ----
   return (
     <div className="container">
-      <h1 style={{marginBottom:4}}>عيادة النساء والتوليد</h1>
+      <h1 style={{marginBottom:4}}>عيادة ام عراقي للنساء و التوليد الراقي</h1>
       <p className="muted" style={{marginBottom:20}}>{patients.length} مريضة مسجلة</p>
 
-      <input placeholder="دور بالاسم أو الرقم" value={search} onChange={e => setSearch(e.target.value)} />
+      <input placeholder="بحث بالاسم أو الرقم" value={search} onChange={e => setSearch(e.target.value)} />
 
       <button onClick={() => setShowAddForm(!showAddForm)} style={{marginBottom:14}}>
         + تسجيل مريضة جديدة
