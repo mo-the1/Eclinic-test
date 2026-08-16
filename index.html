@@ -147,13 +147,13 @@ function App() {
   // ---- Main List ----
   return (
     <div className="container">
-      <h1 style={{marginBottom:4}}>عيادة النساء والتوليد</h1>
-      <p className="muted" style={{marginBottom:20}}>{patients.length} مريضة مسجلة</p>
+      <h1 style={{marginBottom:4}}>عيادة عراقي للنساء والتوليد</h1>
+      <p className="muted" style={{marginBottom:20}}>{patients.length} بيشنت متسجلة</p>
 
       <input placeholder="دور بالاسم أو الرقم" value={search} onChange={e => setSearch(e.target.value)} />
 
       <button onClick={() => setShowAddForm(!showAddForm)} style={{marginBottom:14}}>
-        + تسجيل مريضة جديدة
+        + تسجيل بيشنت جديد
       </button>
 
       {showAddForm && (
@@ -161,7 +161,7 @@ function App() {
           <input placeholder="الاسم" value={form.name} onChange={e => setForm({...form, name:e.target.value})} />
           <input placeholder="رقم الموبايل" value={form.phone} onChange={e => setForm({...form, phone:e.target.value})} />
           <input placeholder="السن" value={form.age} onChange={e => setForm({...form, age:e.target.value})} />
-          <label className="muted" style={{fontSize:12}}>الكشف الجاي بعد كام يوم؟</label>
+          <label className="muted" style={{fontSize:12}}>المتابعة الجاية بعد كام يوم؟</label>
           <input type="number" value={form.daysUntil} onChange={e => setForm({...form, daysUntil:e.target.value})} />
           <button onClick={handleAddPatient} disabled={loading}>
             {loading ? "جاري الحفظ..." : "حفظ"}
