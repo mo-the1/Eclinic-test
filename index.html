@@ -373,7 +373,7 @@ function App() {
 
         <div className="glass-panel glow-border" style={{padding: 20, marginBottom: 20}}>
           <h2 style={{margin: "0 0 6px", color: "#fff", fontSize: 22}}>{selected.name}</h2>
-          <p className="muted" style={{margin: 0}}>📞 {selected.phone} · {selected.age ? selected.age + " سنة" : "غير محدد"}</p>
+          <p className="muted" style={{margin: 0}}>✆ {selected.phone} · {selected.age ? selected.age + " سنة" : "غير محدد"}</p>
           <div style={{marginTop: 12, fontSize: 13, background: "rgba(168, 85, 247, 0.15)", border: "1px solid rgba(168, 85, 247, 0.3)", borderRadius: 8, padding: "8px 12px", display: "inline-block", color: "#c084fc"}}>
             📅 الكشف القادم: {selected.next_appointment || "-"}
           </div>
@@ -425,7 +425,7 @@ function App() {
                   <option value="lab">🩻 تحليل / سونار / أشعة</option>
                 </select>
 
-                <textarea rows="2" placeholder="ملاحظات توضيحية (اختياري)..."
+                <textarea rows="2" placeholder="اضافة ملاحظات"
                   value={noteText} onChange={e => setNoteText(e.target.value)} />
 
                 <div className="upload-box" onClick={() => fileInputRef.current.click()}>
@@ -499,14 +499,14 @@ function App() {
   return (
     <div className="container">
       <div style={{textAlign: "center", marginBottom: 20}}>
-        <h1 style={{fontSize: 22, margin: "0 0 4px", fontWeight: 800}}>عيادة النساء والتوليد</h1>
+        <h1 style={{fontSize: 22, margin: "0 0 4px", fontWeight: 800}}>عيادة عراقي للنساء والتوليد الراقي</h1>
         <p className="muted" style={{margin: 0, fontSize: 12}}>نظام المتابعة الطبية المتقدم</p>
       </div>
 
       {/* Hero Big Stat Card */}
       <div className="glass-panel hero-stat glow-border">
         <div className="stat-number">{patients.length}</div>
-        <div className="muted" style={{fontSize: 14, marginTop: 6, color: "#e4e4e7"}}>مريضة مسجلة بالسجل الطبي</div>
+        <div className="muted" style={{fontSize: 14, marginTop: 6, color: "#e4e4e7"}}>مريضة مسجلة</div>
       </div>
 
       {/* Action Button */}
@@ -531,7 +531,7 @@ function App() {
 
       {/* Search Input Bar */}
       <input 
-        placeholder="🔍 ابحث بالاسم أو رقم الموبايل..." 
+        placeholder="🔍 بحث بالاسم أو رقم الموبايل..." 
         value={search} 
         onChange={e => setSearch(e.target.value)} 
         style={{fontSize: 15, padding: "14px 18px", marginBottom: 16}}
