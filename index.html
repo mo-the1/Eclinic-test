@@ -750,9 +750,10 @@ function App() {
     );
   }
 
-  // ---- Main Dashboard ----
+ // ---- Main Dashboard ----
   return (
     <div className="container">
+      {/* 1. الترويسة (Header) */}
       <div style={{marginBottom: 24, padding: "12px 0"}}>
         <div style={{display: "flex", justifyContent: "flex-start", marginBottom: 12}}>
           <button
@@ -771,16 +772,7 @@ function App() {
         </div>
       </div>
 
-      <div 
-        className={`glass-panel hero-stat glow-border ${activeView === 'all_months' ? 'active' : ''}`}
-        onClick={() => setActiveView(activeView === 'all_months' ? null : 'all_months')}
-      >
-        <div className="stat-number">{patients.length}</div>
-        <div className="muted" style={{fontSize: 14, marginTop: 6, color: "#e4e4e7"}}>
-          مريضة مسجلة {activeView === 'all_months' ? '▲' : '▼'}
-        </div>
-      </div>
-
+      {/* 2. زر إضافة مريضة أصبح في الأعلى */}
       <button onClick={() => setShowAddForm(!showAddForm)} style={{marginBottom: 16}}>
         + تسجيل مريضة جديدة
       </button>
@@ -799,6 +791,7 @@ function App() {
         </div>
       )}
 
+      {/* 3. مربع البحث */}
       <input 
         placeholder="🔍 بحث بالاسم أو رقم الموبايل..." 
         value={search} 
@@ -806,6 +799,7 @@ function App() {
         style={{fontSize: 15, padding: "14px 18px", marginBottom: 16}}
       />
 
+      {/* 4. عرض النتائج أو الإحصائيات */}
       {search.trim() !== "" ? (
         <div style={{marginBottom: 20}}>
           <p className="muted" style={{fontSize: 13, marginBottom: 8}}>نتائج البحث ({filtered.length}):</p>
@@ -827,6 +821,7 @@ function App() {
         </div>
       ) : (
         <>
+          {/* المربعات الصغيرة (إحصائيات اليوم) */}
           <div className="mini-card-grid">
             <div 
               className={`mini-card ${activeView === 'today_appointments' ? 'active' : ''}`}
@@ -845,6 +840,19 @@ function App() {
             </div>
           </div>
 
+          {/* 5. المربع الكبير (إجمالي المرضى) تم نقله للأسفل هنا */}
+          <div 
+            className={`glass-panel hero-stat glow-border ${activeView === 'all_months' ? 'active' : ''}`}
+            onClick={() => setActiveView(activeView === 'all_months' ? null : 'all_months')}
+            style={{ padding: "16px", marginBottom: "20px" }}
+          >
+            <div className="stat-number" style={{ fontSize: "42px" }}>{patients.length}</div>
+            <div className="muted" style={{fontSize: 14, marginTop: 6, color: "#e4e4e7"}}>
+              إجمالي المريضات المسجلات {activeView === 'all_months' ? '▲' : '▼'}
+            </div>
+          </div>
+
+          {/* القوائم المنسدلة بناءً على الاختيار */}
           {activeView === 'all_months' && (
             <div style={{marginTop: 10}}>
               <p className="muted" style={{fontSize: 13, marginBottom: 10}}>جميع المرضى المسجلين (مقسمين حسب الشهر):</p>
