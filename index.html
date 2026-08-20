@@ -291,6 +291,10 @@ function App() {
   const [zoomedImage, setZoomedImage] = useState(null); 
   const [loading, setLoading] = useState(false);
 
+  // المتغيرات الجديدة الخاصة بتعديل بيانات المريضة
+  const [isEditingPatient, setIsEditingPatient] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", phone: "", age: "", next_appointment: "" });
+
   // ---- حالة تسجيل الدخول (Auth) ----
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -429,6 +433,81 @@ function App() {
     setLoading(false);
   };
 
+  // --- 1. دالة حفظ تعديلات المريضة ---
+  const handleSaveEditPatient = async () => {
+    setLoading(true);
+    const { error } = await supabase
+      .from("patients")
+      .update({
+        name: editForm.name,
+        phone: editForm.phone,
+        age: editForm.age ? parseInt(editForm.age) : null,
+        next_appointment: editForm.next_appointment
+      })
+      .eq("id", selected.id);
+
+    if (error) alert("خطأ في التعديل: " + error.message);
+    else {
+      const updatedPatient = { ...selected, ...editForm };
+      setSelected(updatedPatient);
+      setIsEditingPatient(false);
+      await loadPatients();
+    }
+    setLoading(false);
+  };
+
+  // --- 2. دالة الحذف الآمن (بها تأكيد مزعج + حذف الصور من التخزين) ---
+  const handleDeletePatient = async () => {
+    const confirmText = window.prompt(`⚠️ تحذير هام!\n\nأنت على وشك حذف المريضة (${selected.name}) وجميع روشتاتها وتحاليلها نهائياً.\nهذا الإجراء لا يمكن التراجع عنه!\n\nلتأكيد الحذف، اكتب كلمة "حذف" في المربع أدناه:`);
+    
+    if (confirmText !== "حذف") {
+      alert("لم يتم الحذف. (تم الإلغاء أو الكلمة غير صحيحة)");
+      return;
+    }
+
+    setLoading(true);
+
+    if (selected.notes && selected.notes.length > 0) {
+      const filesToRemove = selected.notes
+        .filter(n => n.image)
+        .map(n => n.image.split('/').pop()); 
+      
+      if (filesToRemove.length > 0) {
+        await supabase.storage.from("patient-files").remove(filesToRemove);
+      }
+    }
+
+    const { error } = await supabase.from("patients").delete().eq("id", selected.id);
+
+    if (error) {
+      alert("خطأ في الحذف: " + error.message);
+    } else {
+      setSelected(null);
+      await loadPatients();
+    }
+    setLoading(false);
+  };
+
+  // --- 3. دالة حذف عنصر منفصل (روشتة/تحليل/ملاحظة) ---
+  const handleDeleteSingleItem = async (indexToRemove, item) => {
+    if (!window.confirm("هل أنت متأكد من حذف هذا العنصر؟")) return;
+    setLoading(true);
+
+    if (item.image) {
+      const fileName = item.image.split('/').pop();
+      await supabase.storage.from("patient-files").remove([fileName]);
+    }
+
+    const updatedNotes = selected.notes.filter((_, i) => i !== indexToRemove);
+
+    const { error } = await supabase.from("patients").update({ notes: updatedNotes }).eq("id", selected.id);
+    if (!error) {
+      setSelected({ ...selected, notes: updatedNotes });
+      await loadPatients();
+    }
+    setLoading(false);
+  };
+
   // المريضات المتطابقات مع البحث
   const filtered = search.trim() === "" ? [] : patients.filter(p =>
     p.name.includes(search) || (p.phone || "").includes(search)
@@ -508,15 +587,43 @@ function App() {
 
     return (
       <div className="container">
-        <button className="back" onClick={() => { setSelected(null); setShowNoteForm(false); }}>→ رجوع للقائمة الرئيسية</button>
-
-        <div className="glass-panel glow-border" style={{padding: 20, marginBottom: 20}}>
-          <h2 style={{margin: "0 0 6px", color: "#fff", fontSize: 22}}>{selected.name}</h2>
-          <p className="muted" style={{margin: 0}}>✆ {selected.phone} · {selected.age ? selected.age + " سنة" : "غير محدد"}</p>
-          <div style={{marginTop: 12, fontSize: 13, background: "rgba(168, 85, 247, 0.15)", border: "1px solid rgba(168, 85, 247, 0.3)", borderRadius: 8, padding: "8px 12px", display: "inline-block", color: "#c084fc"}}>
-            📅 الكشف القادم: {selected.next_appointment || "-"}
+        <div className="row-between" style={{marginBottom: "16px"}}>
+          <button className="back" onClick={() => { setSelected(null); setShowNoteForm(false); setIsEditingPatient(false); }} style={{margin:0}}>→ رجوع للقائمة</button>
+          
+          <div style={{display: "flex", gap: "8px"}}>
+            <button className="small secondary" style={{color: "#c084fc", borderColor: "rgba(192, 132, 252, 0.4)"}} onClick={() => {
+              setEditForm({ name: selected.name, phone: selected.phone, age: selected.age || "", next_appointment: selected.next_appointment || "" });
+              setIsEditingPatient(!isEditingPatient);
+            }}>
+              {isEditingPatient ? "إلغاء التعديل" : "✏️ تعديل"}
+            </button>
+            <button className="small secondary" style={{color: "#f87171", borderColor: "rgba(248, 113, 113, 0.4)"}} onClick={handleDeletePatient}>
+              🗑️ حذف
+            </button>
           </div>
         </div>
+
+        {isEditingPatient ? (
+          <div className="glass-panel glow-border" style={{padding: 20, marginBottom: 20}}>
+            <h3 style={{margin: "0 0 12px", color: "#fff", fontSize: 16}}>تعديل بيانات المريضة</h3>
+            <input placeholder="الاسم بالكامل" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} />
+            <input placeholder="رقم الموبايل" value={editForm.phone} onChange={e => setEditForm({...editForm, phone: e.target.value})} />
+            <input placeholder="السن" value={editForm.age} onChange={e => setEditForm({...editForm, age: e.target.value})} />
+            <label className="muted" style={{fontSize: 12, display: "block", marginBottom: 4}}>تاريخ الكشف القادم</label>
+            <input type="date" value={editForm.next_appointment} onChange={e => setEditForm({...editForm, next_appointment: e.target.value})} />
+            <button onClick={handleSaveEditPatient} disabled={loading} style={{marginTop: 8}}>
+              {loading ? "جاري الحفظ..." : "حفظ التعديلات"}
+            </button>
+          </div>
+        ) : (
+          <div className="glass-panel glow-border" style={{padding: 20, marginBottom: 20}}>
+            <h2 style={{margin: "0 0 6px", color: "#fff", fontSize: 22}}>{selected.name}</h2>
+            <p className="muted" style={{margin: 0}}>✆ {selected.phone} · {selected.age ? selected.age + " سنة" : "غير محدد"}</p>
+            <div style={{marginTop: 12, fontSize: 13, background: "rgba(168, 85, 247, 0.15)", border: "1px solid rgba(168, 85, 247, 0.3)", borderRadius: 8, padding: "8px 12px", display: "inline-block", color: "#c084fc"}}>
+              📅 الكشف القادم: {selected.next_appointment || "-"}
+            </div>
+          </div>
+        )}
 
         {/* Tab Selection */}
         <div className="tab-container">
@@ -576,13 +683,17 @@ function App() {
           </div>
         )}
 
+        {/* عرض الروشتات */}
         {activeTab === 'prescription' && (
           prescriptions.length === 0 ? (
             <p className="muted" style={{textAlign: "center", padding: "20px 0"}}>لا توجد روشتات مسجلة</p>
           ) : (
             prescriptions.map((n, i) => (
               <div className="glass-panel note" key={i}>
-                <div className="muted" style={{marginBottom: 4, fontSize: 12}}>🗓️ {n.date}</div>
+                <div className="row-between" style={{marginBottom: 4}}>
+                  <div className="muted" style={{fontSize: 12}}>🗓️ {n.date}</div>
+                  <button className="small secondary" style={{color: "#f87171", border: "none", padding: 0}} onClick={() => handleDeleteSingleItem(selected.notes.indexOf(n), n)}>🗑️ حذف</button>
+                </div>
                 {n.text && <div style={{margin: "6px 0"}}>{n.text}</div>}
                 {n.image && (
                   <img src={n.image} alt="روشتة" onClick={() => setZoomedImage(n.image)} title="اضغط للتكبير" />
@@ -592,13 +703,17 @@ function App() {
           )
         )}
 
+        {/* عرض التحاليل */}
         {activeTab === 'lab' && (
           labs.length === 0 ? (
             <p className="muted" style={{textAlign: "center", padding: "20px 0"}}>لا توجد تحاليل أو صور سونار مسجلة</p>
           ) : (
             labs.map((n, i) => (
               <div className="glass-panel note" key={i}>
-                <div className="muted" style={{marginBottom: 4, fontSize: 12}}>🗓️ {n.date}</div>
+                <div className="row-between" style={{marginBottom: 4}}>
+                  <div className="muted" style={{fontSize: 12}}>🗓️ {n.date}</div>
+                  <button className="small secondary" style={{color: "#f87171", border: "none", padding: 0}} onClick={() => handleDeleteSingleItem(selected.notes.indexOf(n), n)}>🗑️ حذف</button>
+                </div>
                 {n.text && <div style={{margin: "6px 0"}}>{n.text}</div>}
                 {n.image && (
                   <img src={n.image} alt="فحص / سونار" onClick={() => setZoomedImage(n.image)} title="اضغط للتكبير" />
@@ -608,13 +723,17 @@ function App() {
           )
         )}
 
+        {/* عرض الملاحظات */}
         {activeTab === 'notes' && (
           textNotes.length === 0 ? (
             <p className="muted" style={{textAlign: "center", padding: "20px 0"}}>لا توجد ملاحظات مدونة</p>
           ) : (
             textNotes.map((n, i) => (
               <div className="glass-panel note" key={i}>
-                <div className="muted" style={{marginBottom: 6, fontSize: 12}}>🗓️ {n.date}</div>
+                <div className="row-between" style={{marginBottom: 4}}>
+                  <div className="muted" style={{fontSize: 12}}>🗓️ {n.date}</div>
+                  <button className="small secondary" style={{color: "#f87171", border: "none", padding: 0}} onClick={() => handleDeleteSingleItem(selected.notes.indexOf(n), n)}>🗑️ حذف</button>
+                </div>
                 <div style={{lineHeight: 1.6, color: "#e4e4e7"}}>{n.text}</div>
               </div>
             ))
@@ -634,7 +753,6 @@ function App() {
   // ---- Main Dashboard ----
   return (
     <div className="container">
-      {/* عنوان العيادة بتصميم أوضح ومساحة أكبر */}
       <div style={{marginBottom: 24, padding: "12px 0"}}>
         <div style={{display: "flex", justifyContent: "flex-start", marginBottom: 12}}>
           <button
@@ -653,7 +771,6 @@ function App() {
         </div>
       </div>
 
-      {/* Hero Big Stat Card (قابل للنقر لعرض المرضى مقسمين بالشهور) */}
       <div 
         className={`glass-panel hero-stat glow-border ${activeView === 'all_months' ? 'active' : ''}`}
         onClick={() => setActiveView(activeView === 'all_months' ? null : 'all_months')}
@@ -664,12 +781,10 @@ function App() {
         </div>
       </div>
 
-      {/* Action Button */}
       <button onClick={() => setShowAddForm(!showAddForm)} style={{marginBottom: 16}}>
         + تسجيل مريضة جديدة
       </button>
 
-      {/* Form modal/card for adding new patient */}
       {showAddForm && (
         <div className="glass-panel glow-border" style={{padding: 16, marginBottom: 16}}>
           <h3 style={{margin: "0 0 12px", fontSize: 16, color: "#c084fc"}}>تسجيل مريضة جديدة</h3>
@@ -684,7 +799,6 @@ function App() {
         </div>
       )}
 
-      {/* Search Input Bar */}
       <input 
         placeholder="🔍 بحث بالاسم أو رقم الموبايل..." 
         value={search} 
@@ -692,7 +806,6 @@ function App() {
         style={{fontSize: 15, padding: "14px 18px", marginBottom: 16}}
       />
 
-      {/* نتائج البحث المباشر */}
       {search.trim() !== "" ? (
         <div style={{marginBottom: 20}}>
           <p className="muted" style={{fontSize: 13, marginBottom: 8}}>نتائج البحث ({filtered.length}):</p>
@@ -713,7 +826,6 @@ function App() {
           )}
         </div>
       ) : (
-        /* العرض المخصص بالضغط */
         <>
           <div className="mini-card-grid">
             <div 
@@ -733,7 +845,6 @@ function App() {
             </div>
           </div>
 
-          {/* 1. قائمة عرض كل المرضى مقسمين شهرياً */}
           {activeView === 'all_months' && (
             <div style={{marginTop: 10}}>
               <p className="muted" style={{fontSize: 13, marginBottom: 10}}>جميع المرضى المسجلين (مقسمين حسب الشهر):</p>
@@ -760,7 +871,6 @@ function App() {
             </div>
           )}
 
-          {/* 2. قائمة كروت تسجيلات اليوم فقط */}
           {activeView === 'today_registered' && (
             <div style={{marginTop: 10}}>
               <p className="muted" style={{fontSize: 13, marginBottom: 10}}>تسجيلات اليوم ({todayRegistered.length}):</p>
@@ -782,7 +892,6 @@ function App() {
             </div>
           )}
 
-          {/* 3. قائمة مواعيد اليوم */}
           {activeView === 'today_appointments' && (
             <div style={{marginTop: 10}}>
               <p className="muted" style={{fontSize: 13, marginBottom: 10}}>مواعيد كشوفات اليوم ({todayAppointments.length}):</p>
