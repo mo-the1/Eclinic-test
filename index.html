@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clinic System</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { 
+    /* خلفية متدرجة من الأبيض للبيبي بلو الفاتح جداً */
+    background: radial-gradient(circle at top, #ffffff 0%, #e0f2fe 100%);
+    color: #1e293b; /* لون النص الأساسي كحلي غامق ليكون مريح للعين */
+    font-family: 'Tajawal', Arial, sans-serif; 
+    margin: 0; 
+    min-height: 100vh;
+  }
+  .container { max-width: 440px; margin: 0 auto; padding: 20px; }
+
+  /* Glassmorphism Styles للثيم الفاتح */
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 8px 32px 0 rgba(2, 132, 199, 0.08); /* ظل أزرق خفيف جداً */
+    border-radius: 16px;
+  }
+
+  .glow-border {
+    position: relative;
+  }
+  .glow-border::after {
+    content: '';
+    position: absolute;
+    top: -1px; left: -1px; right: -1px; bottom: -1px;
+    border-radius: 16px;
+    /* إطار مضيء بألوان البيبي بلو */
+    background: linear-gradient(45deg, #7dd3fc, transparent, #38bdf8);
+    z-index: -1;
+    opacity: 0.6;
+  }
+
+  /* Stat Card Hero */
+  .hero-stat {
+    text-align: center;
+    padding: 24px;
+    margin-bottom: 20px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(224, 242, 254, 0.6) 100%);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    animation: pulse-glow 3s infinite alternate;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .hero-stat:hover {
+    transform: translateY(-2px);
+    border-color: rgba(56, 189, 248, 0.8);
+  }
+  .hero-stat.active {
+    border-color: #0284c7;
+    background: radial-gradient(circle, rgba(224, 242, 254, 0.9) 0%, rgba(255, 255, 255, 0.95) 100%);
+  }
+
+  @keyframes pulse-glow {
+    0% { box-shadow: 0 0 15px rgba(56, 189, 248, 0.2); }
+    100% { box-shadow: 0 0 25px rgba(56, 189, 248, 0.5); }
+  }
+
+  .stat-number {
+    font-size: 42px;
+    font-weight: 800;
+    color: #0284c7; /* أزرق طبي */
+    text-shadow: 0 0 20px rgba(56, 189, 248, 0.5);
+    line-height: 1;
+  }
+
+  /* Form Elements */
+  input, textarea, select { 
+    width: 100%; 
+    background: rgba(255, 255, 255, 0.8); 
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 12px; 
+    padding: 12px 16px; 
+    color: #0f172a; 
+    margin-bottom: 12px; 
+    font-size: 14px; 
+    font-family: inherit;
+    outline: none;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+    transition: all 0.3s ease;
+  }
+  input::placeholder, textarea::placeholder {
+    color: #94a3b8;
+  }
+  input:focus, textarea:focus {
+    border-color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.3), inset 0 2px 4px rgba(0,0,0,0.02);
+  }
+
+  /* Buttons */
+  button { 
+    width: 100%; 
+    background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%); 
+    color: #fff; 
+    border: none; 
+    border-radius: 12px;
+    padding: 14px; 
+    font-weight: bold; 
+    font-size: 15px; 
+    cursor: pointer; 
+    box-shadow: 0 4px 15px rgba(2, 132, 199, 0.3);
+    transition: all 0.2s ease;
+  }
+  button:hover { opacity: 0.95; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(2, 132, 199, 0.4); }
+  
+  button.secondary { 
+    background: rgba(255, 255, 255, 0.8); 
+    color: #0284c7; 
+    border: 1px solid rgba(56, 189, 248, 0.6); 
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.1);
+  }
+  button.secondary:hover {
+    background: #f0f9ff;
+  }
+  button.small { width: auto; padding: 8px 16px; font-size: 13px; border-radius: 20px; }
+
+  /* Cards */
+  .card { 
+    padding: 14px 18px; 
+    margin-bottom: 10px;
+    cursor: pointer; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    transition: all 0.2s ease;
+  }
+  .card:hover { 
+    border-color: #38bdf8; 
+    background: rgba(240, 249, 255, 0.8); 
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.1);
+  }
+
+  .mini-card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .mini-card {
+    padding: 14px 12px;
+    border-radius: 12px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(2, 132, 199, 0.05);
+    transition: all 0.2s ease;
+  }
+  .mini-card:hover {
+    background: rgba(240, 249, 255, 0.8);
+    border-color: rgba(56, 189, 248, 0.4);
+  }
+  .mini-card.active {
+    background: rgba(224, 242, 254, 0.9);
+    border-color: #38bdf8;
+    box-shadow: 0 4px 15px rgba(2, 132, 199, 0.15);
+  }
+
+  .month-header {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0284c7;
+    margin: 16px 0 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px dashed rgba(56, 189, 248, 0.5);
+  }
+
+  /* Tabs */
+  .tab-container {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    padding-bottom: 8px;
+  }
+  .tab-btn {
+    flex: 1;
+    background: transparent;
+    box-shadow: none;
+    color: #64748b;
+    padding: 8px 4px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: normal;
+  }
+  .tab-btn.active {
+    background: rgba(224, 242, 254, 0.8);
+    color: #0284c7;
+    border: 1px solid rgba(56, 189, 248, 0.5);
+    font-weight: bold;
+  }
+
+  .row-between { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .muted { color: #64748b; font-size: 13px; }
+  .note { padding: 12px; margin-bottom: 10px; font-size: 14px; }
+  .note img { 
+    width: 100%; 
+    border-radius: 8px; 
+    margin-top: 10px; 
+    display: block; 
+    border: 1px solid rgba(148, 163, 184, 0.2); 
+    cursor: zoom-in;
+    transition: transform 0.2s ease;
+  }
+  .note img:hover { transform: scale(1.01); }
+  .back { background: none; border: none; color: #0284c7; margin-bottom: 16px; cursor: pointer; font-size: 14px; width: auto; padding: 0; box-shadow: none; }
+  
+  .upload-box { 
+    border: 2px dashed rgba(56, 189, 248, 0.5); 
+    border-radius: 12px; 
+    padding: 18px; 
+    text-align: center;
+    margin-bottom: 10px; 
+    cursor: pointer; 
+    color: #0284c7; 
+    font-size: 13px; 
+    background: rgba(240, 249, 255, 0.5);
+    transition: all 0.2s ease;
+  }
+  .upload-box:hover {
+    background: rgba(224, 242, 254, 0.8);
+    border-color: #0284c7;
+  }
+
+  /* Lightbox / Zoom Modal - تم تخفيف سواد الخلفية عشان مايكونش مزعج */
+  .zoom-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 23, 42, 0.85);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    backdrop-filter: blur(8px);
+  }
+  .zoom-img {
+    max-width: 100%;
+    max-height: 85vh;
+    border-radius: 12px;
+    box-shadow: 0 0 30px rgba(56, 189, 248, 0.3);
+    object-fit: contain;
+  }
+  .zoom-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: none;
+  }
+  .zoom-close:hover { background: rgba(255, 255, 255, 0.3); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useMemo } = React;
+
+// ====== بيانات Supabase الخاصـة بك ======
+const SUPABASE_URL = "https://mfrveljsifglheyrmgbi.supabase.co";
+const SUPABASE_KEY = "sb_publishable_15xYpC6dNvCzbvUi9vuPfQ__xOua0NS";
+// ============================
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const getLocalDateStr = (d = new Date()) => {
+  const dateObj = typeof d === 'string' ? new Date(d) : d;
+  if (isNaN(dateObj.getTime())) return "";
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+function App() {
+  const [patients, setPatients] = useState([]);
+  const [search, setSearch] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [showNoteForm, setShowNoteForm] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [fileType, setFileType] = useState("prescription"); 
+  const [activeTab, setActiveTab] = useState("prescription"); 
+  const [zoomedImage, setZoomedImage] = useState(null); 
+  const [loading, setLoading] = useState(false);
+
+  const [isEditingPatient, setIsEditingPatient] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", phone: "", age: "", next_appointment: "" });
+
+  const [session, setSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+  
+  const [activeView, setActiveView] = useState(null);
+
+  const fileInputRef = useRef(null);
+  const [form, setForm] = useState({ name: "", phone: "", age: "", job: "", daysUntil: "7" });
+
+  const loadPatients = async () => {
+    const { data, error } = await supabase
+      .from("patients").select("*").order("created_at", { ascending: false });
+    if (!error) setPatients(data || []);
+  };
+
+  useEffect(() => { loadPatients(); }, []);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  const handleLogin = async () => {
+    setLoginError("");
+    if (!loginEmail.trim() || !loginPassword.trim()) return;
+    setLoginLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: loginEmail.trim(),
+      password: loginPassword
+    });
+    if (error) setLoginError("بيانات الدخول غير صحيحة");
+    setLoginLoading(false);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setSelected(null);
+  };
+
+  const calcDate = (days) => {
+    const d = new Date();
+    d.setDate(d.getDate() + parseInt(days || 0));
+    return getLocalDateStr(d);
+  };
+
+  const handleAddPatient = async () => {
+    if (!form.name.trim() || !form.phone.trim()) return;
+    setLoading(true);
+    const { error } = await supabase.from("patients").insert([{
+      name: form.name, 
+      phone: form.phone,
+      age: form.age ? parseInt(form.age) : null,
+      next_appointment: calcDate(form.daysUntil),
+      notes: []
+    }]);
+    if (error) alert("خطأ: " + error.message);
+    else {
+      setForm({ name: "", phone: "", age: "", job: "", daysUntil: "7" });
+      setShowAddForm(false);
+      await loadPatients();
+    }
+    setLoading(false);
+  };
+
+  const uploadImage = async (file) => {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${selected.id}_${Date.now()}.${fileExt}`;
+    const { error: uploadError } = await supabase.storage
+      .from("patient-files").upload(fileName, file);
+    if (uploadError) { alert("فشل رفع الصورة: " + uploadError.message); return null; }
+    const { data } = supabase.storage.from("patient-files").getPublicUrl(fileName);
+    return data.publicUrl;
+  };
+
+  const handleFileSelected = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !selected) return;
+    setLoading(true);
+    const imageUrl = await uploadImage(file);
+    if (imageUrl) {
+      const updatedNotes = [
+        { 
+          image: imageUrl, 
+          text: noteText, 
+          type: fileType,
+          date: getLocalDateStr() 
+        },
+        ...(selected.notes || [])
+      ];
+      const { error } = await supabase.from("patients")
+        .update({ notes: updatedNotes }).eq("id", selected.id);
+      if (error) alert("خطأ: " + error.message);
+      else {
+        setSelected({ ...selected, notes: updatedNotes });
+        setNoteText("");
+        setShowNoteForm(false);
+        await loadPatients();
+      }
+    }
+    setLoading(false);
+    e.target.value = "";
+  };
+
+  const handleAddTextNote = async () => {
+    if (!noteText.trim() || !selected) return;
+    setLoading(true);
+    const updatedNotes = [
+      { 
+        text: noteText, 
+        type: 'note', 
+        date: getLocalDateStr() 
+      },
+      ...(selected.notes || [])
+    ];
+    const { error } = await supabase.from("patients")
+      .update({ notes: updatedNotes }).eq("id", selected.id);
+    if (error) alert("خطأ: " + error.message);
+    else {
+      setSelected({ ...selected, notes: updatedNotes });
+      setNoteText("");
+      setShowNoteForm(false);
+      await loadPatients();
+    }
+    setLoading(false);
+  };
+
+  const handleSaveEditPatient = async () => {
+    setLoading(true);
+    const { error } = await supabase
+      .from("patients")
+      .update({
+        name: editForm.name,
+        phone: editForm.phone,
+        age: editForm.age ? parseInt(editForm.age) : null,
+        next_appointment: editForm.next_appointment
+      })
+      .eq("id", selected.id);
+
+    if (error) alert("خطأ في التعديل: " + error.message);
+    else {
+      const updatedPatient = { ...selected, ...editForm };
+      setSelected(updatedPatient);
+      setIsEditingPatient(false);
+      await loadPatients();
+    }
+    setLoading(false);
+  };
+
+  const handleDeletePatient = async () => {
+    const confirmText = window.prompt(`⚠️ تحذير هام!\n\nأنت على وشك حذف المريضة (${selected.name}) وجميع روشتاتها وتحاليلها نهائياً.\nهذا الإجراء لا يمكن التراجع عنه!\n\nلتأكيد الحذف، اكتب كلمة "حذف" في المربع أدناه:`);
+    
+    if (confirmText !== "حذف") {
+      alert("لم يتم الحذف. (تم الإلغاء أو الكلمة غير صحيحة)");
+      return;
+    }
+
+    setLoading(true);
+
+    if (selected.notes && selected.notes.length > 0) {
+      const filesToRemove = selected.notes
+        .filter(n => n.image)
+        .map(n => n.image.split('/').pop()); 
+      
+      if (filesToRemove.length > 0) {
+        await supabase.storage.from("patient-files").remove(filesToRemove);
+      }
+    }
+
+    const { error } = await supabase.from("patients").delete().eq("id", selected.id);
+
+    if (error) {
+      alert("خطأ في الحذف: " + error.message);
+    } else {
+      setSelected(null);
+      await loadPatients();
+    }
+    setLoading(false);
+  };
+
+  const handleDeleteSingleItem = async (indexToRemove, item) => {
+    if (!window.confirm("هل أنت متأكد من حذف هذا العنصر؟")) return;
+    setLoading(true);
+
+    if (item.image) {
+      const fileName = item.image.split('/').pop();
+      await supabase.storage.from("patient-files").remove([fileName]);
+    }
+
+    const updatedNotes = selected.notes.filter((_, i) => i !== indexToRemove);
+
+    const { error } = await supabase.from("patients").update({ notes: updatedNotes }).eq("id", selected.id);
+    if (!error) {
+      setSelected({ ...selected, notes: updatedNotes });
+      await loadPatients();
+    }
+    setLoading(false);
+  };
+
+  const filtered = search.trim() === "" ? [] : patients.filter(p =>
+    p.name.includes(search) || (p.phone || "").includes(search)
+  );
+
+  const todayStr = getLocalDateStr();
+  const todayAppointments = patients.filter(p => p.next_appointment === todayStr);
+  const todayRegistered = patients.filter(p => p.created_at && getLocalDateStr(p.created_at) === todayStr);
+
+  const groupedByMonth = useMemo(() => {
+    const groups = {};
+    patients.forEach(p => {
+      let monthName = "سجلات سابقة";
+      if (p.created_at) {
+        const d = new Date(p.created_at);
+        if (!isNaN(d.getTime())) {
+          monthName = d.toLocaleDateString("ar-EG", { month: "long", year: "numeric" });
+        }
+      }
+      if (!groups[monthName]) groups[monthName] = [];
+      groups[monthName].push(p);
+    });
+    return groups;
+  }, [patients]);
+
+  if (authLoading) {
+    return (
+      <div className="container" style={{display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh"}}>
+        <p className="muted">جاري التحميل...</p>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="container" style={{display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh"}}>
+        <div className="glass-panel glow-border" style={{padding: 28, width: "100%"}}>
+          <h2 style={{textAlign: "center", margin: "0 0 4px", fontSize: 22, color: "#0f172a"}}>
+            عيادة عراقي للنساء والتوليد الراقي
+          </h2>
+          <p className="muted" style={{textAlign: "center", margin: "0 0 24px", fontSize: 13}}>تسجيل الدخول</p>
+
+          <input
+            placeholder="البريد الإلكتروني"
+            value={loginEmail}
+            onChange={e => setLoginEmail(e.target.value)}
+          />
+          <input
+            type="password"
+            placeholder="كلمة المرور"
+            value={loginPassword}
+            onChange={e => setLoginPassword(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleLogin()}
+          />
+
+          {loginError && (
+            <p style={{color: "#e53e3e", fontSize: 13, margin: "0 0 12px"}}>{loginError}</p>
+          )}
+
+          <button onClick={handleLogin} disabled={loginLoading}>
+            {loginLoading ? "جاري الدخول..." : "تسجيل الدخول"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (selected) {
+    const prescriptions = (selected.notes || []).filter(n => n.type === 'prescription' || (!n.type && n.image));
+    const labs = (selected.notes || []).filter(n => n.type === 'lab');
+    const textNotes = (selected.notes || []).filter(n => n.type === 'note' || (!n.image && n.text));
+
+    return (
+      <div className="container">
+        <div className="row-between" style={{marginBottom: "16px"}}>
+          <button className="back" onClick={() => { setSelected(null); setShowNoteForm(false); setIsEditingPatient(false); }} style={{margin:0}}>→ رجوع للقائمة</button>
+          
+          <div style={{display: "flex", gap: "8px"}}>
+            <button className="small secondary" style={{color: "#0284c7", borderColor: "rgba(2, 132, 199, 0.3)"}} onClick={() => {
+              setEditForm({ name: selected.name, phone: selected.phone, age: selected.age || "", next_appointment: selected.next_appointment || "" });
+              setIsEditingPatient(!isEditingPatient);
+            }}>
+              {isEditingPatient ? "إلغاء التعديل" : "✏️ تعديل"}
+            </button>
+            <button className="small secondary" style={{color: "#e53e3e", borderColor: "rgba(229, 62, 62, 0.4)", background: "rgba(254, 226, 226, 0.5)"}} onClick={handleDeletePatient}>
+              🗑️ حذف
+            </button>
+          </div>
+        </div>
+
+        {isEditingPatient ? (
+          <div className="glass-panel glow-border" style={{padding: 20, marginBottom: 20}}>
+            <h3 style={{margin: "0 0 12px", color: "#0f172a", fontSize: 16}}>تعديل بيانات المريضة</h3>
+            <input placeholder="الاسم بالكامل" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} />
+            <input placeholder="رقم الموبايل" value={editForm.phone} onChange={e => setEditForm({...editForm, phone: e.target.value})} />
+            <input placeholder="السن" value={editForm.age} onChange={e => setEditForm({...editForm, age: e.target.value})} />
+            <label className="muted" style={{fontSize: 12, display: "block", marginBottom: 4}}>تاريخ الكشف القادم</label>
+            <input type="date" value={editForm.next_appointment} onChange={e => setEditForm({...editForm, next_appointment: e.target.value})} />
+            <button onClick={handleSaveEditPatient} disabled={loading} style={{marginTop: 8}}>
+              {loading ? "جاري الحفظ..." : "حفظ التعديلات"}
+            </button>
+          </div>
+        ) : (
+          <div className="glass-panel glow-border" style={{padding: 20, marginBottom: 20}}>
+            <h2 style={{margin: "0 0 6px", color: "#0f172a", fontSize: 22}}>{selected.name}</h2>
+            <p className="muted" style={{margin: 0}}>✆ {selected.phone} · {selected.age ? selected.age + " سنة" : "غير محدد"}</p>
+            <div style={{marginTop: 12, fontSize: 13, background: "rgba(56, 189, 248, 0.15)", border: "1px solid rgba(56, 189, 248, 0.3)", borderRadius: 8, padding: "8px 12px", display: "inline-block", color: "#0284c7", fontWeight: "bold"}}>
+              📅 الكشف القادم: {selected.next_appointment || "-"}
+            </div>
+          </div>
+        )}
+
+        {/* Tab Selection */}
+        <div className="tab-container">
+          <button 
+            className={`tab-btn ${activeTab === 'prescription' ? 'active' : ''}`}
+            onClick={() => setActiveTab('prescription')}>
+            📋 الروشتات ({prescriptions.length})
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'lab' ? 'active' : ''}`}
+            onClick={() => setActiveTab('lab')}>
+            🩻 التحاليل والأشعة ({labs.length})
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'notes' ? 'active' : ''}`}
+            onClick={() => setActiveTab('notes')}>
+            📝 الملاحظات ({textNotes.length})
+          </button>
+        </div>
+
+        <div className="row-between">
+          <span className="muted" style={{fontSize: 14}}>
+            {activeTab === 'prescription' ? 'سجل الروشتات المرفوعة' : activeTab === 'lab' ? 'سجل الأشعة والفحوصات' : 'الملاحظات والسجل الطبي'}
+          </span>
+          <button className="small secondary" onClick={() => setShowNoteForm(!showNoteForm)}>
+            + {activeTab === 'prescription' ? 'رفع روشتة' : activeTab === 'lab' ? 'رفع تحليل' : 'إضافة ملاحظة'}
+          </button>
+        </div>
+
+        {showNoteForm && (
+          <div className="glass-panel" style={{padding: 16, marginBottom: 16}}>
+            {activeTab === 'notes' ? (
+              <>
+                <textarea rows="3" placeholder="اكتب الملاحظة هنا..."
+                  value={noteText} onChange={e => setNoteText(e.target.value)} />
+                <button onClick={handleAddTextNote} disabled={loading}>
+                  {loading ? "جاري الحفظ..." : "حفظ الملاحظة"}
+                </button>
+              </>
+            ) : (
+              <>
+                <select value={fileType} onChange={e => setFileType(e.target.value)} style={{marginBottom: 10}}>
+                  <option value="prescription">📋 روشتة علاجية</option>
+                  <option value="lab">🩻 تحليل / سونار / أشعة</option>
+                </select>
+
+                <textarea rows="2" placeholder="اضافة ملاحظات"
+                  value={noteText} onChange={e => setNoteText(e.target.value)} />
+
+                <div className="upload-box" onClick={() => fileInputRef.current.click()}>
+                  {loading ? "جاري رفع الملف..." : "📎 اضغط هنا لاختيار الصورة أو المستند"}
+                </div>
+                <input type="file" accept="image/*" ref={fileInputRef}
+                  style={{display: "none"}} onChange={handleFileSelected} />
+              </>
+            )}
+          </div>
+        )}
+
+        {/* عرض الروشتات */}
+        {activeTab === 'prescription' && (
+          prescriptions.length === 0 ? (
+            <p className="muted" style={{textAlign: "center", padding: "20px 0"}}>لا توجد روشتات مسجلة</p>
+          ) : (
+            prescriptions.map((n, i) => (
+              <div className="glass-panel note" key={i}>
+                <div className="row-between" style={{marginBottom: 4}}>
+                  <div className="muted" style={{fontSize: 12, color: "#0284c7"}}>🗓️ {n.date}</div>
+                  <button className="small secondary" style={{color: "#e53e3e", border: "none", padding: 0, background: "transparent"}} onClick={() => handleDeleteSingleItem(selected.notes.indexOf(n), n)}>🗑️ حذف</button>
+                </div>
+                {n.text && <div style={{margin: "6px 0", color: "#334155"}}>{n.text}</div>}
+                {n.image && (
+                  <img src={n.image} alt="روشتة" onClick={() => setZoomedImage(n.image)} title="اضغط للتكبير" />
+                )}
+              </div>
+            ))
+          )
+        )}
+
+        {/* عرض التحاليل */}
+        {activeTab === 'lab' && (
+          labs.length === 0 ? (
+            <p className="muted" style={{textAlign: "center", padding: "20px 0"}}>لا توجد تحاليل أو صور سونار مسجلة</p>
+          ) : (
+            labs.map((n, i) => (
+              <div className="glass-panel note" key={i}>
+                <div className="row-between" style={{marginBottom: 4}}>
+                  <div className="muted" style={{fontSize: 12, color: "#0284c7"}}>🗓️ {n.date}</div>
+                  <button className="small secondary" style={{color: "#e53e3e", border: "none", padding: 0, background: "transparent"}} onClick={() => handleDeleteSingleItem(selected.notes.indexOf(n), n)}>🗑️ حذف</button>
+                </div>
+                {n.text && <div style={{margin: "6px 0", color: "#334155"}}>{n.text}</div>}
+                {n.image && (
+                  <img src={n.image} alt="فحص / سونار" onClick={() => setZoomedImage(n.image)} title="اضغط للتكبير" />
+                )}
+              </div>
+            ))
+          )
+        )}
+
+        {/* عرض الملاحظات */}
+        {activeTab === 'notes' && (
+          textNotes.length === 0 ? (
+            <p className="muted" style={{textAlign: "center", padding: "20px 0"}}>لا توجد ملاحظات مدونة</p>
+          ) : (
+            textNotes.map((n, i) => (
+              <div className="glass-panel note" key={i}>
+                <div className="row-between" style={{marginBottom: 4}}>
+                  <div className="muted" style={{fontSize: 12, color: "#0284c7"}}>🗓️ {n.date}</div>
+                  <button className="small secondary" style={{color: "#e53e3e", border: "none", padding: 0, background: "transparent"}} onClick={() => handleDeleteSingleItem(selected.notes.indexOf(n), n)}>🗑️ حذف</button>
+                </div>
+                <div style={{lineHeight: 1.6, color: "#334155"}}>{n.text}</div>
+              </div>
+            ))
+          )
+        )}
+
+        {zoomedImage && (
+          <div className="zoom-overlay" onClick={() => setZoomedImage(null)}>
+            <button className="zoom-close" onClick={() => setZoomedImage(null)}>✕</button>
+            <img src={zoomedImage} className="zoom-img" alt="صورة مكبرة" onClick={e => e.stopPropagation()} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ---- Main Dashboard ----
+  return (
+    <div className="container">
+      {/* الترويسة (Header) */}
+      <div style={{marginBottom: 24, padding: "12px 0"}}>
+        <div style={{display: "flex", justifyContent: "flex-start", marginBottom: 12}}>
+          <button
+            className="small secondary"
+            onClick={handleLogout}
+            style={{width: "auto"}}
+          >
+            خروج
+          </button>
+        </div>
+        <div style={{textAlign: "center"}}>
+          <h1 style={{fontSize: 26, margin: "0 0 6px", fontWeight: 800, letterSpacing: "0.5px", color: "#0f172a", lineHeight: 1.3}}>
+            عيادة عراقي للنساء والتوليد الراقي
+          </h1>
+          <p className="muted" style={{margin: "10px 0 0", fontSize: 13}}>نظام المتابعة الطبية المتقدم</p>
+        </div>
+      </div>
+
+      {/* زر إضافة مريضة */}
+      <button onClick={() => setShowAddForm(!showAddForm)} style={{marginBottom: 16}}>
+        + تسجيل مريضة جديدة
+      </button>
+
+      {showAddForm && (
+        <div className="glass-panel glow-border" style={{padding: 16, marginBottom: 16}}>
+          <h3 style={{margin: "0 0 12px", fontSize: 16, color: "#0284c7"}}>تسجيل مريضة جديدة</h3>
+          <input placeholder="الاسم بالكامل" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+          <input placeholder="رقم الموبايل" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} />
+          <input placeholder="السن" value={form.age} onChange={e => setForm({...form, age: e.target.value})} />
+          <label className="muted" style={{fontSize: 12, display: "block", marginBottom: 4}}>موعد الكشف القادم بعد كم يوم؟</label>
+          <input type="number" value={form.daysUntil} onChange={e => setForm({...form, daysUntil: e.target.value})} />
+          <button onClick={handleAddPatient} disabled={loading}>
+            {loading ? "جاري الحفظ..." : "حفظ البيانات"}
+          </button>
+        </div>
+      )}
+
+      {/* مربع البحث */}
+      <input 
+        placeholder="🔍 بحث بالاسم أو رقم الموبايل..." 
+        value={search} 
+        onChange={e => setSearch(e.target.value)} 
+        style={{fontSize: 15, padding: "14px 18px", marginBottom: 16}}
+      />
+
+      {/* عرض النتائج أو الإحصائيات */}
+      {search.trim() !== "" ? (
+        <div style={{marginBottom: 20}}>
+          <p className="muted" style={{fontSize: 13, marginBottom: 8}}>نتائج البحث ({filtered.length}):</p>
+          {filtered.length === 0 ? (
+            <p className="muted">لم يتم العثور على نتائج</p>
+          ) : (
+            filtered.map(p => (
+              <div className="glass-panel card" key={p.id} onClick={() => setSelected(p)}>
+                <div>
+                  <div style={{fontWeight: "bold", color: "#0f172a"}}>{p.name}</div>
+                  <div className="muted" style={{fontSize: 12}}>{p.phone} · {p.age ? p.age + " سنة" : "-"}</div>
+                </div>
+                <div className="muted" style={{fontSize: 12, textAlign: "left", color: "#0284c7", fontWeight: "bold"}}>
+                  الكشف القادم<br/>{p.next_appointment || "-"}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      ) : (
+        <>
+          {/* المربعات الصغيرة (إحصائيات اليوم) */}
+          <div className="mini-card-grid">
+            <div 
+              className={`mini-card ${activeView === 'today_appointments' ? 'active' : ''}`}
+              onClick={() => setActiveView(activeView === 'today_appointments' ? null : 'today_appointments')}
+            >
+              <div style={{fontSize: 18, fontWeight: "bold", color: "#0284c7"}}>{todayAppointments.length}</div>
+              <div className="muted" style={{fontSize: 11}}>مواعيد اليوم</div>
+            </div>
+
+            <div 
+              className={`mini-card ${activeView === 'today_registered' ? 'active' : ''}`}
+              onClick={() => setActiveView(activeView === 'today_registered' ? null : 'today_registered')}
+            >
+              <div style={{fontSize: 18, fontWeight: "bold", color: "#38bdf8"}}>{todayRegistered.length}</div>
+              <div className="muted" style={{fontSize: 11}}>تسجيلات اليوم</div>
+            </div>
+          </div>
+
+          {/* المربع الكبير (إجمالي المرضى) */}
+          <div 
+            className={`glass-panel hero-stat glow-border ${activeView === 'all_months' ? 'active' : ''}`}
+            onClick={() => setActiveView(activeView === 'all_months' ? null : 'all_months')}
+            style={{ padding: "16px", marginBottom: "20px" }}
+          >
+            <div className="stat-number" style={{ fontSize: "42px" }}>{patients.length}</div>
+            <div className="muted" style={{fontSize: 14, marginTop: 6, color: "#475569"}}>
+              إجمالي المريضات المسجلات {activeView === 'all_months' ? '▲' : '▼'}
+            </div>
+          </div>
+
+          {/* القوائم المنسدلة بناءً على الاختيار */}
+          {activeView === 'all_months' && (
+            <div style={{marginTop: 10}}>
+              <p className="muted" style={{fontSize: 13, marginBottom: 10}}>جميع المرضى المسجلين (مقسمين حسب الشهر):</p>
+              {Object.keys(groupedByMonth).length === 0 ? (
+                <p className="muted">لا يوجد مرضى مسجلون</p>
+              ) : (
+                Object.entries(groupedByMonth).map(([month, list]) => (
+                  <div key={month}>
+                    <div className="month-header">📅 {month} ({list.length})</div>
+                    {list.map(p => (
+                      <div className="glass-panel card" key={p.id} onClick={() => setSelected(p)}>
+                        <div>
+                          <div style={{fontWeight: "bold", fontSize: 14, color: "#0f172a"}}>{p.name}</div>
+                          <div className="muted" style={{fontSize: 12}}>{p.phone} · {p.age ? p.age + " سنة" : "-"}</div>
+                        </div>
+                        <div className="muted" style={{fontSize: 12, textAlign: "left", color: "#0284c7", fontWeight: "bold"}}>
+                          الكشف القادم<br/>{p.next_appointment || "-"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {activeView === 'today_registered' && (
+            <div style={{marginTop: 10}}>
+              <p className="muted" style={{fontSize: 13, marginBottom: 10}}>تسجيلات اليوم ({todayRegistered.length}):</p>
+              {todayRegistered.length === 0 ? (
+                <p className="muted">لا توجد تسجيلات جديدة اليوم</p>
+              ) : (
+                todayRegistered.map(p => (
+                  <div className="glass-panel card" key={p.id} onClick={() => setSelected(p)}>
+                    <div>
+                      <div style={{fontWeight: "bold", fontSize: 14, color: "#0f172a"}}>{p.name}</div>
+                      <div className="muted" style={{fontSize: 12}}>{p.phone}</div>
+                    </div>
+                    <div className="muted" style={{fontSize: 12, textAlign: "left", color: "#0284c7", fontWeight: "bold"}}>
+                      الكشف القادم<br/>{p.next_appointment || "-"}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {activeView === 'today_appointments' && (
+            <div style={{marginTop: 10}}>
+              <p className="muted" style={{fontSize: 13, marginBottom: 10}}>مواعيد كشوفات اليوم ({todayAppointments.length}):</p>
+              {todayAppointments.length === 0 ? (
+                <p className="muted">لا توجد مواعيد كشف اليوم</p>
+              ) : (
+                todayAppointments.map(p => (
+                  <div className="glass-panel card" key={p.id} onClick={() => setSelected(p)}>
+                    <div>
+                      <div style={{fontWeight: "bold", fontSize: 14, color: "#0f172a"}}>{p.name}</div>
+                      <div className="muted" style={{fontSize: 12}}>{p.phone}</div>
+                    </div>
+                    <div className="muted" style={{fontSize: 12, textAlign: "left", color: "#0284c7", fontWeight: "bold"}}>
+                      الكشف اليوم<br/>{p.next_appointment}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
